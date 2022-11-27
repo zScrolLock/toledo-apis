@@ -1,4 +1,4 @@
-from fastapi import FastAPI # Router Dependency
+from fastapi import (FastAPI, Response, status) # Router Dependency
 from pydantic import (BaseModel, constr) # Base Model to Person Class
 from enum import Enum
 import datetime
@@ -18,51 +18,65 @@ class Person(BaseModel):
     treat: bool = False
     pos: int = None
 
-@router.get("/queue")
-async def listQueue():
-    return {
-        "message": "/queue - GET",
-        "code": 200,
-        "queue": queue
-    }
-
-@router.get("/queue/{id}")
-async def getInfo(id: int):
+@router.get("/queue", status_code=200)
+async def listQueue(response: Response):
 
     if not queue:
+        response.status_code = status.HTTP_204_NO_CONTENT
         return {
-            "message": "/queue - GET - NOT FOUND",
+            "message": "/queue - GET",
+            "code": 204,
+            "queue": queue
+        }
+    else:
+        response.status_code = status.HTTP_200_OK
+        return {
+            "message": "/queue - GET",
+            "code": 200,
+            "queue": queue
+        }
+
+@router.get("/queue/{id}", status_code=200)
+async def getInfo(id: int, response: Response):
+
+    if not queue:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {
+            "message": "/queue/:id - GET - NOT FOUND",
             "code": 404,
         }
     else:
         try:
+            response.status_code = status.HTTP_200_OK
             return {
-            "message": "/queue - GET",
+            "message": "/queue/:id - GET",
             "code": 200,
             "person": queue[id]
             }
         except IndexError:
+            response.status_code = status.HTTP_404_NOT_FOUND
             return {
-                "message": "/queue - GET - NOT FOUND",
+                "message": "/queue/:id - GET - NOT FOUND",
                 "code": 404
             }
     
 
-@router.post("/queue")
+@router.post("/queue", status_code=201)
 async def queuePerson(person: Person):
     person.pos = len(queue)
     queue.append(person)
 
     return {
-        "message": "queue - POST",
-        "code": 200,
+        "message": "/queue - POST",
+        "code": 201,
         "person": person
     }
 
-@router.put("/queue")
-async def updateQueue():
+@router.put("/queue", status_code=200)
+async def updateQueue(response: Response):
 
     if not queue:
+        response.status_code = status.HTTP_204_NO_CONTENT
         return {
             "message": "/queue - PUT - EMPTY QUEUE",
             "code": 204,
@@ -73,18 +87,20 @@ async def updateQueue():
         for person in queue:
             person.pos = person.pos - 1
 
+        response.status_code = status.HTTP_200_OK
         return {
             "message": "/queue - PUT",
             "code": 200,
             "queue": queue
         }
 
-@router.delete("/queue/{id}")
-async def deleteQueue(id: int):
+@router.delete("/queue/{id}", status_code=200)
+async def deleteQueue(id: int, response: Response):
     
     if not queue:
+        response.status_code = status.HTTP_204_NO_CONTENT
         return {
-            "message": "/queue - PUT - EMPTY QUEUE",
+            "message": "/queue/:id - DELETE - EMPTY QUEUE",
             "code": 204,
         }
     else:
@@ -93,8 +109,9 @@ async def deleteQueue(id: int):
         try:
             treats.append(queue.pop(id))
         except IndexError:
+            response.status_code = status.HTTP_404_NOT_FOUND
             return {
-                "message": "/queue - PUT - NOT FOUND",
+                "message": "/queue/:id - DELETE - NOT FOUND",
                 "code": 404,
             }
 
@@ -103,17 +120,19 @@ async def deleteQueue(id: int):
             person.pos = index
             index+=1
 
+        response.status_code = status.HTTP_200_OK
         return {
-            "message": "/queue - PUT",
+            "message": "/queue/:id - DELETE",
             "code": 200,
             "queue": queue
         }
 
 
-@router.put("/priority")
-async def updateQueuePriority():
+@router.put("/priority", status_code=200)
+async def updateQueuePriority(response: Response):
 
     if not queue:
+        response.status_code = status.HTTP_204_NO_CONTENT
         return {
             "message": "/priority - PUT - EMPTY QUEUE",
             "code": 204,
@@ -131,28 +150,40 @@ async def updateQueuePriority():
             try:
                 treats.append(queue.pop(result))
             except IndexError:
+                response.status_code = status.HTTP_404_NOT_FOUND
                 return {
-                    "message": "/queue - PUT - NOT FOUND",
+                    "message": "/priority - PUT - NOT FOUND",
                     "code": 404
                 }
-                
+        
+        response.status_code = status.HTTP_200_OK
         return {
-            "message": "/queue - PUT",
+            "message": "/priority - PUT",
             "code": 200,
             "queue": queue
         }
 
-@router.get("/treats")
-async def treatsPersons():
+@router.get("/treats", status_code=200)
+async def treatsPersons(response: Response):
 
-    for person in treats:
-        person.treat = True
+    if not treats:
+        response.status_code = status.HTTP_204_NO_CONTENT
+        return {
+            "message": "/treats - GET - EMPTY CONTENT",
+            "code": 204,
+            "atendidos": treats
+        }
+    else:
+        for person in treats:
+            person.treat = True
 
-    return {
-        "message": "/treats - GET",
-        "code": 200,
-        "atendidos": treats
-    }
+        response.status_code = status.HTTP_200_OK
+        return {
+            "message": "/treats - GET",
+            "code": 200,
+            "atendidos": treats
+        }
+    
 
 def findPriority():        
     for person in queue:
